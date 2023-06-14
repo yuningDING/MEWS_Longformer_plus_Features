@@ -63,7 +63,20 @@ date_time_str = datetime.now().strftime("%Y%m%d%H%M")
 
 verbose_outputs_file = open(f"verbose_results_{date_time_str}_{h_params}.txt", "w")
 verbose_os = StreamFork(sys.stdout, verbose_outputs_file)
-qwk_results_file = open(f"qwk_results_{date_time_str}_{h_params}.txt", "w")
+qwk_test_results_file = open(f"qwk_test_results_{date_time_str}_{h_params}.txt", "w")
+qwk_valid_results_file = open(f"qwk_valid_results_{date_time_str}_{h_params}.txt", "w")
+
+# inject new print function
+_original_print = print
+
+
+# noinspection PyShadowingBuiltins
+def print(*a, **b):
+    if "file" not in b.keys():
+        b["file"] = verbose_os
+
+    _original_print(*a, **b)
+
 
 # set random seeds
 
@@ -318,8 +331,7 @@ def train_model(n_epochs,
         train_loss = 0
         val_loss = 0
         model.train()
-        print(f' Epoch: {epoch + 1} - Train Set '.center(50, '='),
-              file=verbose_os)
+        print(f' Epoch: {epoch + 1} - Train Set '.center(50, '='))
         for batch_idx, batch in enumerate(train_loader):
             input_ids = batch['input_ids'].to(device, dtype=torch.long)
             attention_mask = batch['attention_mask'].to(device, dtype=torch.long)
@@ -342,8 +354,7 @@ def train_model(n_epochs,
             del input_ids, attention_mask, token_type_ids, targets, outputs
             gc.collect()
 
-        print(f' Epoch: {epoch + 1} - Validation Set '.center(50, '='),
-              file=verbose_os)
+        print(f' Epoch: {epoch + 1} - Validation Set '.center(50, '='))
         model.eval()
         val_targets = []
         val_outputs = []
@@ -370,13 +381,14 @@ def train_model(n_epochs,
                 epoch + 1,
                 train_loss,
                 val_loss
-            ), file=verbose_os)
+            ))
         val_outputs_labels = np.array([np.argmax(a) for a in val_outputs])
         val_targets_labels = np.array([np.argmax(a) for a in val_targets])
         val_qwk = cohen_kappa_score(val_targets_labels, val_outputs_labels, weights='quadratic')
-        print(f"Validation QWK: {round(val_qwk, 4)}", file=verbose_os)
+        print(f"Validation QWK: {round(val_qwk, 4)}",
+              file=StreamFork(verbose_os, qwk_valid_results_file))
 
-        print('Test', file=verbose_os)
+        print('Test')
         model.eval()
         test_targets = []
         test_outputs = []
@@ -404,16 +416,17 @@ def train_model(n_epochs,
         f1_score_micro = f1_score(test_targets_labels, test_outputs_labels, average='micro')
         f1_score_macro = f1_score(test_targets_labels, test_outputs_labels, average='macro')
         qwk = cohen_kappa_score(test_targets_labels, test_outputs_labels, weights='quadratic')
-        print(f"Test Loss: {round(test_loss, 4)}", file=verbose_os)
-        print(f"Accuracy Score: {round(accuracy, 4)}", file=verbose_os)
-        print(f"Recall (Micro): {round(recall_micro, 4)}", file=verbose_os)
-        print(f"Recall (Macro): {round(recall_macro, 4)}", file=verbose_os)
-        print(f"F1 Score (Micro): {round(f1_score_micro, 4)}", file=verbose_os)
-        print(f"F1 Score (Macro): {round(f1_score_macro, 4)} \n", file=verbose_os)
-        print(f"QWK: {round(qwk, 4)}", file=StreamFork(verbose_os, qwk_results_file))
+        print(f"Test Loss: {round(test_loss, 4)}")
+        print(f"Accuracy Score: {round(accuracy, 4)}")
+        print(f"Recall (Micro): {round(recall_micro, 4)}")
+        print(f"Recall (Macro): {round(recall_macro, 4)}")
+        print(f"F1 Score (Micro): {round(f1_score_micro, 4)}")
+        print(f"F1 Score (Macro): {round(f1_score_macro, 4)} \n")
+        print(f"QWK: {round(qwk, 4)}",
+              file=StreamFork(verbose_os, qwk_test_results_file))
         cm = confusion_matrix(test_targets_labels, test_outputs_labels)
-        print("Confusion Matrix:", file=verbose_os)
-        print(cm, file=verbose_os)
+        print("Confusion Matrix:")
+        print(cm)
 
     return model
 
@@ -435,6 +448,8 @@ def transfer_targets(df, target):
 
 
 for i in range(Parameters.folds):
+    print(f' Fold: {i} '.center(50, '='))
+
     tokenizer, model = build_model_tokenizer(withCustomFeature=False, num_extra_dims=0)
 
     valid_dataset = MEWSDataset(transfer_targets(validate_AD, Parameters.score_rubric), max_len=Parameters.max_len,
@@ -458,6 +473,8 @@ for i in range(Parameters.folds):
 # valid_dataset = MEWSDataset(validate_AD, max_len=Parameters.max_len,tokenizer=tokenizer,target=Parameters.score_rubric, extra_feature='ctap')
 # val_data_loader = DataLoader(valid_dataset,shuffle=False,batch_size=Parameters.batch_size)
 # for i in range(Parameters.folds):
+#    print(f' Fold: {i} '.center(50, '='))
+#
 #    tokenizer, model = build_model_tokenizer(withCustomFeature=False, num_extra_dims=0)
 #
 #    valid_dataset = MEWSDataset(transfer_targets(validate_AD, Parameters.score_rubric), max_len=Parameters.max_len,
@@ -474,4 +491,5 @@ for i in range(Parameters.folds):
 # close output streams
 
 verbose_outputs_file.close()
-qwk_results_file.close()
+qwk_test_results_file.close()
+qwk_valid_results_file.close()
