@@ -433,14 +433,14 @@ def transfer_targets(df, target):
 
 # Pipeline 1 - Baseline Longformer without extra features
 
-tokenizer, model = build_model_tokenizer(withCustomFeature=False, num_extra_dims=0)
 
-valid_dataset = MEWSDataset(transfer_targets(validate_AD, Parameters.score_rubric), max_len=Parameters.max_len,
-                            tokenizer=tokenizer, target=Parameters.score_rubric)
-val_data_loader = DataLoader(valid_dataset, shuffle=False, batch_size=Parameters.batch_size)
-
-# TODO: Run 10 Folds, 10 Epochs
 for i in range(Parameters.folds):
+    tokenizer, model = build_model_tokenizer(withCustomFeature=False, num_extra_dims=0)
+
+    valid_dataset = MEWSDataset(transfer_targets(validate_AD, Parameters.score_rubric), max_len=Parameters.max_len,
+                                tokenizer=tokenizer, target=Parameters.score_rubric)
+    val_data_loader = DataLoader(valid_dataset, shuffle=False, batch_size=Parameters.batch_size)
+
     train_dataset = MEWSDataset(transfer_targets(train_AD[i], Parameters.score_rubric), max_len=Parameters.max_len,
                                 tokenizer=tokenizer, target=Parameters.score_rubric)
     train_data_loader = DataLoader(train_dataset, shuffle=True, batch_size=Parameters.batch_size)
@@ -450,8 +450,6 @@ for i in range(Parameters.folds):
     model = train_model(n_epochs=Parameters.epochs, train_loader=train_data_loader, val_loader=val_data_loader,
                         test_loader=test_data_loader, model=model, lr=Parameters.learning_rate, device=device)
 
-    # TODO: Run three targets in ['Spr_fs_facets_rounded', 'Str_fs_facets_rounded', 'Inh_fs_facets_rounded']
-    # TODO: Run two prompts in ['AD', 'TE']
 # %%
 
 # Pipeline 2 - Longformer with extra feature
@@ -460,13 +458,17 @@ for i in range(Parameters.folds):
 # valid_dataset = MEWSDataset(validate_AD, max_len=Parameters.max_len,tokenizer=tokenizer,target=Parameters.score_rubric, extra_feature='ctap')
 # val_data_loader = DataLoader(valid_dataset,shuffle=False,batch_size=Parameters.batch_size)
 # for i in range(Parameters.folds):
+#    tokenizer, model = build_model_tokenizer(withCustomFeature=False, num_extra_dims=0)
+#
+#    valid_dataset = MEWSDataset(transfer_targets(validate_AD, Parameters.score_rubric), max_len=Parameters.max_len,
+#                                tokenizer=tokenizer, target=Parameters.score_rubric)
+#    val_data_loader = DataLoader(valid_dataset, shuffle=False, batch_size=Parameters.batch_size)
+#
 #    train_dataset = MEWSDataset(train_AD[i], max_len=Parameters.max_len,tokenizer=tokenizer,target=Parameters.score_rubric, extra_feature='ctap')
 #    train_data_loader = DataLoader(train_dataset,shuffle=True,batch_size=Parameters.batch_size)
 #    test_dataset = MEWSDataset(test_AD[i], max_len=Parameters.max_len,tokenizer=tokenizer,target=Parameters.score_rubric, extra_feature='ctap')
 #    test_data_loader = DataLoader(test_dataset,shuffle=False,batch_size=Parameters.batch_size)
 #    model = train_model(n_epochs=Parameters.epochs, train_loader=train_data_loader, val_loader=val_data_loader,test_loader=test_data_loader,model=model, targets=Parameters.score_rubric, lr=Parameters.learning_rate, extra_data='ctap', device=device)
-# TODO: Run two prompts in ['AD', 'TE']
-# TODO: Run three targets in ['Spr_fs_facets_rounded', 'Str_fs_facets_rounded', 'Inh_fs_facets_rounded']
 
 
 # close output streams
