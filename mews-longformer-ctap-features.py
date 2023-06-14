@@ -33,11 +33,14 @@ class Parameters:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--longformer", type=str, default='allenai/longformer-large-4096')
-    parser.add_argument("-ml", "--max_len", type=int, default=1024)
+    parser.add_argument("-p", "--prompt", type=str, default="AD", choices=["AD", "TE"])
+    parser.add_argument("-sr", "--score_rubric", type=str, default="Spr_fs_facets_rounded",
+                        choices=["Spr_fs_facets_rounded", "Str_fs_facets_rounded", "Inh_fs_facets_rounded"])
+    parser.add_argument("-lf", "--longformer", type=str, default='allenai/longformer-large-4096')
+    parser.add_argument("-ml", "--max_len", type=int, default=512)
     parser.add_argument("-bs", "--batch_size", type=int, default=1)
     parser.add_argument("-lr", "--learning_rate", type=float, default=1e-5)
-    parser.add_argument("-e", "--epochs", type=int, default=1)
+    parser.add_argument("-e", "--epochs", type=int, default=10)
     parser.add_argument("-rs", "--random_seed", type=int, default=42)
     parser.add_argument("-f", "--folds", type=int, default=10)
 
@@ -409,8 +412,8 @@ def train_model(n_epochs,
         print(f"F1 Score (Macro): {round(f1_score_macro, 4)} \n", file=verbose_os)
         print(f"QWK: {round(qwk, 4)}", file=StreamFork(verbose_os, qwk_results_file))
         cm = confusion_matrix(test_targets_labels, test_outputs_labels)
-        print("Confusion Matrix:")
-        print(cm)
+        print("Confusion Matrix:", file=verbose_os)
+        print(cm, file=verbose_os)
 
     return model
 
@@ -432,17 +435,17 @@ def transfer_targets(df, target):
 
 tokenizer, model = build_model_tokenizer(withCustomFeature=False, num_extra_dims=0)
 
-valid_dataset = MEWSDataset(transfer_targets(validate_AD, 'Spr_fs_facets_rounded'), max_len=Parameters.max_len,
-                            tokenizer=tokenizer, target='Spr_fs_facets_rounded')
+valid_dataset = MEWSDataset(transfer_targets(validate_AD, Parameters.score_rubric), max_len=Parameters.max_len,
+                            tokenizer=tokenizer, target=Parameters.score_rubric)
 val_data_loader = DataLoader(valid_dataset, shuffle=False, batch_size=Parameters.batch_size)
 
 # TODO: Run 10 Folds, 10 Epochs
 for i in range(Parameters.folds):
-    train_dataset = MEWSDataset(transfer_targets(train_AD[i], 'Spr_fs_facets_rounded'), max_len=Parameters.max_len,
-                                tokenizer=tokenizer, target='Spr_fs_facets_rounded')
+    train_dataset = MEWSDataset(transfer_targets(train_AD[i], Parameters.score_rubric), max_len=Parameters.max_len,
+                                tokenizer=tokenizer, target=Parameters.score_rubric)
     train_data_loader = DataLoader(train_dataset, shuffle=True, batch_size=Parameters.batch_size)
-    test_dataset = MEWSDataset(transfer_targets(test_AD[i], 'Spr_fs_facets_rounded'), max_len=Parameters.max_len,
-                               tokenizer=tokenizer, target='Spr_fs_facets_rounded')
+    test_dataset = MEWSDataset(transfer_targets(test_AD[i], Parameters.score_rubric), max_len=Parameters.max_len,
+                               tokenizer=tokenizer, target=Parameters.score_rubric)
     test_data_loader = DataLoader(test_dataset, shuffle=False, batch_size=Parameters.batch_size)
     model = train_model(n_epochs=Parameters.epochs, train_loader=train_data_loader, val_loader=val_data_loader,
                         test_loader=test_data_loader, model=model, lr=Parameters.learning_rate, device=device)
@@ -454,14 +457,14 @@ for i in range(Parameters.folds):
 # Pipeline 2 - Longformer with extra feature
 # tokenizer, model = build_model_tokenizer(withCustomFeature=True, num_extra_dims=num_features_AD)
 
-# valid_dataset = MEWSDataset(validate_AD, max_len=Parameters.max_len,tokenizer=tokenizer,target='Spr_fs_facets_rounded', extra_feature='ctap')
+# valid_dataset = MEWSDataset(validate_AD, max_len=Parameters.max_len,tokenizer=tokenizer,target=Parameters.score_rubric, extra_feature='ctap')
 # val_data_loader = DataLoader(valid_dataset,shuffle=False,batch_size=Parameters.batch_size)
 # for i in range(Parameters.folds):
-#    train_dataset = MEWSDataset(train_AD[i], max_len=Parameters.max_len,tokenizer=tokenizer,target='Spr_fs_facets_rounded', extra_feature='ctap')
+#    train_dataset = MEWSDataset(train_AD[i], max_len=Parameters.max_len,tokenizer=tokenizer,target=Parameters.score_rubric, extra_feature='ctap')
 #    train_data_loader = DataLoader(train_dataset,shuffle=True,batch_size=Parameters.batch_size)
-#    test_dataset = MEWSDataset(test_AD[i], max_len=Parameters.max_len,tokenizer=tokenizer,target='Spr_fs_facets_rounded', extra_feature='ctap')
+#    test_dataset = MEWSDataset(test_AD[i], max_len=Parameters.max_len,tokenizer=tokenizer,target=Parameters.score_rubric, extra_feature='ctap')
 #    test_data_loader = DataLoader(test_dataset,shuffle=False,batch_size=Parameters.batch_size)
-#    model = train_model(n_epochs=Parameters.epochs, train_loader=train_data_loader, val_loader=val_data_loader,test_loader=test_data_loader,model=model, targets='Spr_fs_facets_rounded', lr=Parameters.learning_rate, extra_data='ctap', device=device)
+#    model = train_model(n_epochs=Parameters.epochs, train_loader=train_data_loader, val_loader=val_data_loader,test_loader=test_data_loader,model=model, targets=Parameters.score_rubric, lr=Parameters.learning_rate, extra_data='ctap', device=device)
 # TODO: Run two prompts in ['AD', 'TE']
 # TODO: Run three targets in ['Spr_fs_facets_rounded', 'Str_fs_facets_rounded', 'Inh_fs_facets_rounded']
 
