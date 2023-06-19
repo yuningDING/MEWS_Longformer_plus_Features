@@ -213,8 +213,7 @@ def validation_train_test_split(df):
     return validate, train, test
 
 
-validate_AD, train_AD, test_AD = validation_train_test_split(df_AD)
-validate_TE, train_TE, test_TE = validation_train_test_split(df_TE)
+validate, train, test = validation_train_test_split(df_AD if Parameters.prompt == "AD" else df_TE)
 
 
 # Step 3: Datasets and Model
@@ -447,46 +446,48 @@ def transfer_targets(df, target):
 # Pipeline 1 - Baseline Longformer without extra features
 
 
+# for i in range(Parameters.folds):
+#     print(f' Fold: {i} '.center(50, '='))
+#
+#     tokenizer, model = build_model_tokenizer(withCustomFeature=False, num_extra_dims=0)
+#
+#     valid_dataset = MEWSDataset(transfer_targets(validate, Parameters.score_rubric), max_len=Parameters.max_len,
+#                                 tokenizer=tokenizer, target=Parameters.score_rubric)
+#     val_data_loader = DataLoader(valid_dataset, shuffle=False, batch_size=Parameters.batch_size)
+#
+#     train_dataset = MEWSDataset(transfer_targets(train[i], Parameters.score_rubric), max_len=Parameters.max_len,
+#                                 tokenizer=tokenizer, target=Parameters.score_rubric)
+#     train_data_loader = DataLoader(train_dataset, shuffle=True, batch_size=Parameters.batch_size)
+#     test_dataset = MEWSDataset(transfer_targets(test[i], Parameters.score_rubric), max_len=Parameters.max_len,
+#                                tokenizer=tokenizer, target=Parameters.score_rubric)
+#     test_data_loader = DataLoader(test_dataset, shuffle=False, batch_size=Parameters.batch_size)
+#     model = train_model(n_epochs=Parameters.epochs, train_loader=train_data_loader, val_loader=val_data_loader,
+#                         test_loader=test_data_loader, model=model, lr=Parameters.learning_rate, device=device)
+
+# %%
+
+# Pipeline 2 - Longformer with extra feature
+
 for i in range(Parameters.folds):
     print(f' Fold: {i} '.center(50, '='))
 
     tokenizer, model = build_model_tokenizer(withCustomFeature=False, num_extra_dims=0)
 
-    valid_dataset = MEWSDataset(transfer_targets(validate_AD, Parameters.score_rubric), max_len=Parameters.max_len,
+    valid_dataset = MEWSDataset(transfer_targets(validate, Parameters.score_rubric), max_len=Parameters.max_len,
                                 tokenizer=tokenizer, target=Parameters.score_rubric)
     val_data_loader = DataLoader(valid_dataset, shuffle=False, batch_size=Parameters.batch_size)
 
-    train_dataset = MEWSDataset(transfer_targets(train_AD[i], Parameters.score_rubric), max_len=Parameters.max_len,
-                                tokenizer=tokenizer, target=Parameters.score_rubric)
+    train_dataset = MEWSDataset(transfer_targets(train[i], Parameters.score_rubric), max_len=Parameters.max_len,
+                                tokenizer=tokenizer, target=Parameters.score_rubric, extra_feature='ctap')
     train_data_loader = DataLoader(train_dataset, shuffle=True, batch_size=Parameters.batch_size)
-    test_dataset = MEWSDataset(transfer_targets(test_AD[i], Parameters.score_rubric), max_len=Parameters.max_len,
-                               tokenizer=tokenizer, target=Parameters.score_rubric)
+
+    test_dataset = MEWSDataset(transfer_targets(test[i], Parameters.score_rubric), max_len=Parameters.max_len,
+                               tokenizer=tokenizer, target=Parameters.score_rubric, extra_feature='ctap')
     test_data_loader = DataLoader(test_dataset, shuffle=False, batch_size=Parameters.batch_size)
+
     model = train_model(n_epochs=Parameters.epochs, train_loader=train_data_loader, val_loader=val_data_loader,
-                        test_loader=test_data_loader, model=model, lr=Parameters.learning_rate, device=device)
-
-# %%
-
-# Pipeline 2 - Longformer with extra feature
-# tokenizer, model = build_model_tokenizer(withCustomFeature=True, num_extra_dims=num_features_AD)
-
-# valid_dataset = MEWSDataset(validate_AD, max_len=Parameters.max_len,tokenizer=tokenizer,target=Parameters.score_rubric, extra_feature='ctap')
-# val_data_loader = DataLoader(valid_dataset,shuffle=False,batch_size=Parameters.batch_size)
-# for i in range(Parameters.folds):
-#    print(f' Fold: {i} '.center(50, '='))
-#
-#    tokenizer, model = build_model_tokenizer(withCustomFeature=False, num_extra_dims=0)
-#
-#    valid_dataset = MEWSDataset(transfer_targets(validate_AD, Parameters.score_rubric), max_len=Parameters.max_len,
-#                                tokenizer=tokenizer, target=Parameters.score_rubric)
-#    val_data_loader = DataLoader(valid_dataset, shuffle=False, batch_size=Parameters.batch_size)
-#
-#    train_dataset = MEWSDataset(train_AD[i], max_len=Parameters.max_len,tokenizer=tokenizer,target=Parameters.score_rubric, extra_feature='ctap')
-#    train_data_loader = DataLoader(train_dataset,shuffle=True,batch_size=Parameters.batch_size)
-#    test_dataset = MEWSDataset(test_AD[i], max_len=Parameters.max_len,tokenizer=tokenizer,target=Parameters.score_rubric, extra_feature='ctap')
-#    test_data_loader = DataLoader(test_dataset,shuffle=False,batch_size=Parameters.batch_size)
-#    model = train_model(n_epochs=Parameters.epochs, train_loader=train_data_loader, val_loader=val_data_loader,test_loader=test_data_loader,model=model, targets=Parameters.score_rubric, lr=Parameters.learning_rate, extra_data='ctap', device=device)
-
+                        test_loader=test_data_loader, model=model, lr=Parameters.learning_rate, extra_data='ctap',
+                        device=device)
 
 # close output streams
 
